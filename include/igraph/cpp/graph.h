@@ -207,6 +207,9 @@ public:
      */
     AttributeValue& operator[](const std::string& attribute);
 
+    /// Prints the edge list to cout.
+    void print_edges() const;
+
 private:
     /// Returns a pointer to the attribute holder of the graph
     AttributeHolder* getAttributeHolder();

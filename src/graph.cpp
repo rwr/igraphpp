@@ -199,5 +199,12 @@ const AttributeHolder* Graph::getAttributeHolder() const {
     return static_cast<AttributeHolder*>(m_pGraph->attr);
 }
 
+void Graph::print_edges() const{
+    Vector edges = getEdgelist();
+    for (auto source_idx = 0; source_idx < edges.size(); source_idx += 2)
+        std::cout << edges[source_idx] << "," << edges[source_idx+1] << "  ";
+    std::cout << std::endl;
+}
+
 }         // end of namespaces
 

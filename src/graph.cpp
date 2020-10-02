@@ -145,6 +145,13 @@ Vector Graph::neighbors(long int vertex, NeighborMode mode) const {
     return result;
 }
 
+Vector Graph::in_neighbors(long int vertex, NeighborMode mode) const {
+    Vector result;
+    neighbors(&result, vertex, mode);
+    return result;
+}
+
+
 void Graph::setAttribute(const std::string& attribute, const AttributeValue& value) {
     return getAttributeHolder()->setGraphAttribute(attribute, value);
 }

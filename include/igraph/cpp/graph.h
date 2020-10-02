@@ -150,6 +150,8 @@ public:
     void neighbors(Vector* result, long int vertex, NeighborMode mode = IGRAPH_OUT) const;
     /// Returns the neighbors of a vertex
     Vector neighbors(long int vertex, NeighborMode mode = IGRAPH_OUT) const;
+    /// Returns the in-neighbors of a vertex in a directed graph or all neighbors in an undirected graph
+    Vector in_neighbors(long int vertex, NeighborMode mode = IGRAPH_IN) const;
 
     /// Sets the value of the given graph attribute
     void setAttribute(const std::string& attribute, const AttributeValue& value);

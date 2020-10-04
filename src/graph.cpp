@@ -145,12 +145,17 @@ Vector Graph::neighbors(long int vertex, NeighborMode mode) const {
     return result;
 }
 
-Vector Graph::in_neighbors(long int vertex, NeighborMode mode) const {
+Vector Graph::in_neighbors(long int vertex) const {
     Vector result;
-    neighbors(&result, vertex, mode);
+    neighbors(&result, vertex, IGRAPH_IN);
     return result;
 }
 
+Vector Graph::out_neighbors(long int vertex) const {
+    Vector result;
+    neighbors(&result, vertex, IGRAPH_OUT);
+    return result;
+}
 
 void Graph::setAttribute(const std::string& attribute, const AttributeValue& value) {
     return getAttributeHolder()->setGraphAttribute(attribute, value);

@@ -17,6 +17,7 @@
 #include <igraph/cpp/error.h>
 #include <igraph/cpp/types.h>
 #include <igraph/cpp/vector.h>
+#include <unordered_set>
 
 namespace igraph {
 
@@ -30,6 +31,7 @@ class Graph {
 private:
     /// The igraph_t instance encapsulated by the wrapper
     igraph_t* m_pGraph;
+    std::unordered_set<integer_t> deleted_edges;
 
 public:
     /*****************************/
@@ -110,6 +112,12 @@ public:
 
     /// Deletes some edges from the graph
     void deleteEdges(const EdgeSelector& es);
+
+    /// Deletes one edge given by the endpoints
+    void deleteEdge(long u, long v);
+
+    /// Deletes an edge fast.
+    void deleteEdgeFast(long u, long v);
 
     /// Returns the head and tail vertices of an edge
     void edge(integer_t eid, integer_t* from, integer_t* to) const;

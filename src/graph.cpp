@@ -77,6 +77,19 @@ void Graph::deleteEdges(const EdgeSelector& es) {
     IGRAPH_TRY(igraph_delete_edges(m_pGraph, *es.c_es()));
 }
 
+void Graph::deleteEdge(long u, long v){
+    assert(m_pGraph);
+    igraph_es_t c_es;
+    igraph_es_pairs_small(&c_es, isDirected(), u, v, -1);
+    IGRAPH_TRY(igraph_delete_edges(m_pGraph, c_es));
+}
+
+void Graph::deleteEdgeFast(long u, long v){
+    integer_t eid;
+    igraph_get_eid(m_pGraph, &eid, u, v, isDirected(), true);
+    deleted_edges.insert(eid);
+}
+
 void Graph::edge(integer_t eid, integer_t* from, integer_t* to) const {
     assert(m_pGraph);
     IGRAPH_TRY(igraph_edge(m_pGraph, eid, from, to));
@@ -93,7 +106,16 @@ AttributeValue Graph::getAttribute(const std::string& attribute) const {
 
 void Graph::getEdgelist(Vector* result, bool bycol) const {
     assert(m_pGraph);
-    IGRAPH_TRY(igraph_get_edgelist(m_pGraph, result->c_vector(), bycol));
+    Vector prelim_result;
+    IGRAPH_TRY(igraph_get_edgelist(m_pGraph, prelim_result.c_vector(), bycol));
+    for (int i = 0; i < prelim_result.size(); i += 2){
+        integer_t eid;
+        igraph_get_eid(m_pGraph, &eid, prelim_result[i], prelim_result[i+1], isDirected(), true);
+        if (! deleted_edges.count(eid)) {
+            result->push_back(prelim_result[i]);
+            result->push_back(prelim_result[i+1]);
+        }
+    }
 }
 
 Vector Graph::getEdgelist(bool bycol) const {
@@ -105,6 +127,9 @@ Vector Graph::getEdgelist(bool bycol) const {
 integer_t Graph::getEid(integer_t source, integer_t target,
         bool directed, bool error) const {
     integer_t eid;
+    igraph_get_eid(m_pGraph, &eid, source, target, isDirected(), true);
+    if (deleted_edges.count(eid))
+        return -1;
     IGRAPH_TRY(igraph_get_eid(m_pGraph, &eid, source, target, directed, error));
     return eid;
 }
@@ -113,7 +138,8 @@ bool Graph::isDirected() const {
     return igraph_is_directed(m_pGraph);
 }
 
-bool Graph::isSimple() const {
+// TODO from here: account edges deleted fast
+bool Graph::isSimple() const {// TODO account edges deleted fast
     bool_t result;
     IGRAPH_TRY(igraph_is_simple(m_pGraph, &result));
     return result;

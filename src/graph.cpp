@@ -43,6 +43,29 @@ void Graph::addEdges(const Vector& edges) {
     IGRAPH_TRY(igraph_add_edges(m_pGraph, edges.c_vector(), 0));
 }
 
+void Graph::addEdge_fast(igraph_integer_t source, igraph_integer_t target) {
+    if (isDeleted(source, target))
+        deleted_edges.erase(getEid(source, target));
+    Vector edge(2);
+    edge[0] = source; edge[1] = target;
+    addEdges(edge);
+}
+
+void Graph::addEdges_fast(const Vector& edges) {
+    assert(m_pGraph);
+    Vector new_edges;
+    for (int i = 0; i < edges.size(); i += 2) {
+        integer_t eid = getEid(edges[i], edges[i + 1]);
+        if (isDeleted(eid))
+            deleted_edges.erase(eid);
+        else {
+            new_edges.push_back(edges[i]);
+            new_edges.push_back(edges[i+1]);
+        }
+    }
+    IGRAPH_TRY(igraph_add_edges(m_pGraph, new_edges.c_vector(), 0));
+}
+
 void Graph::addVertex() { addVertices(1); }
 
 void Graph::addVertices(long int numVertices) {
@@ -52,12 +75,21 @@ void Graph::addVertices(long int numVertices) {
 
 bool Graph::areConnected(long int u, long int v) const {
     igraph_bool_t result;
-
     assert(m_pGraph);
     IGRAPH_TRY(igraph_are_connected(m_pGraph, u, v, &result));
 
     return result;
 }
+
+bool Graph::areConnected_fast(long int u, long int v) const {
+    igraph_bool_t result = false;
+    assert(m_pGraph);
+    if (isDeleted(u, v))
+        return result;
+    IGRAPH_TRY(igraph_are_connected(m_pGraph, u, v, &result));
+    return result;
+}
+
 
 Vector Graph::degree(const VertexSelector& vids, NeighborMode mode, bool loops) const {
     Vector result;
@@ -85,9 +117,8 @@ void Graph::deleteEdge(long u, long v){
 }
 
 void Graph::deleteEdgeFast(long u, long v){
-    integer_t eid;
-    igraph_get_eid(m_pGraph, &eid, u, v, isDirected(), true);
-    deleted_edges.insert(eid);
+    if (areConnected_fast(u, v))
+        deleted_edges.insert(getEid(u, v));
 }
 
 void Graph::edge(integer_t eid, integer_t* from, integer_t* to) const {
@@ -108,19 +139,16 @@ void Graph::getEdgelist(Vector* result, bool bycol) const {
     assert(m_pGraph);
     Vector prelim_result;
     IGRAPH_TRY(igraph_get_edgelist(m_pGraph, prelim_result.c_vector(), bycol));
-    for (int i = 0; i < prelim_result.size(); i += 2){
-        integer_t eid;
-        igraph_get_eid(m_pGraph, &eid, prelim_result[i], prelim_result[i+1], isDirected(), true);
-        if (! deleted_edges.count(eid)) {
-            result->push_back(prelim_result[i]);
-            result->push_back(prelim_result[i+1]);
-        }
-    }
 }
 
-Vector Graph::getEdgelist(bool bycol) const {
-    Vector result;
-    getEdgelist(&result, bycol);
+Vector Graph::getEdgelist_fast(bool bycol) const {
+    Vector result_prelim, result;
+    getEdgelist(&result_prelim, bycol);
+    for (int i = 0; i < result_prelim.size(); i++)
+        if (! isDeleted(result_prelim[i], result_prelim[i+1])) {
+            result.push_back(result_prelim[i]);
+            result.push_back(result_prelim[i+1]);
+        }
     return result;
 }
 
@@ -138,7 +166,6 @@ bool Graph::isDirected() const {
     return igraph_is_directed(m_pGraph);
 }
 
-// TODO from here: account edges deleted fast
 bool Graph::isSimple() const {// TODO account edges deleted fast
     bool_t result;
     IGRAPH_TRY(igraph_is_simple(m_pGraph, &result));
@@ -243,6 +270,43 @@ void Graph::print_edges() const{
         std::cout << edges[source_idx] << "," << edges[source_idx+1] << "  ";
     std::cout << std::endl;
 }
+
+    int Graph::isSimple_fast(const igraph_t *graph, igraph_bool_t *res) {
+        long int vc = igraph_vcount(graph);
+        long int ec = igraph_ecount(graph);
+
+        if (vc == 0 || ec == 0) {
+            *res = 1;
+        } else {
+            igraph_vector_t neis;
+            long int i, j, n;
+            igraph_bool_t found = 0;
+            IGRAPH_VECTOR_INIT_FINALLY(&neis, 0);
+            for (i = 0; i < vc; i++) {
+                IGRAPH_CHECK(igraph_neighbors(graph, &neis, (igraph_integer_t) i, IGRAPH_OUT));
+                n = igraph_vector_size(&neis);
+                for (j = 0; j < n; j++) {
+                    // changed compared to igraph_is_simple
+                    integer_t eid;
+                    igraph_get_eid(m_pGraph, &eid, i, j, isDirected(), true);
+                    if (deleted_edges.count(eid))
+                        continue;
+                    // end change
+                    if (VECTOR(neis)[j] == i) {
+                        found = 1; break;
+                    }
+                    if (j > 0 && VECTOR(neis)[j - 1] == VECTOR(neis)[j]) {
+                        found = 1; break;
+                    }
+                }
+            }
+            *res = !found;
+            igraph_vector_destroy(&neis);
+            IGRAPH_FINALLY_CLEAN(1);
+        }
+
+        return 0;
+    }
 
 }         // end of namespaces
 
